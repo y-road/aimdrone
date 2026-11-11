@@ -77,6 +77,7 @@ button.go.sm{font-size:15px;padding:10px 18px 10px 22px;letter-spacing:.24em}
 .nrow{display:flex;gap:8px;margin-bottom:8px}
 .nrow input{flex:1;min-width:0;font:600 18px "Barlow Condensed",sans-serif;letter-spacing:.08em;padding:9px 12px;background:rgba(0,0,0,.45);border:1.5px solid rgba(233,230,223,.5);color:var(--ink);outline:none;-webkit-user-select:text;user-select:text;touch-action:auto}
 .nrow input:focus{border-color:var(--amber)}
+.nrow.done #psave{display:none}.nrow input:disabled{opacity:.75;border-color:rgba(233,230,223,.25);color:var(--amber)}
 .lbmsg{font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);min-height:20px;margin:4px 0 6px}
 .board{max-height:min(40vh,380px);overflow-y:auto;touch-action:pan-y;text-align:left;border-top:1px solid rgba(255,255,255,.2);border-bottom:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.28)}
 #rank .board{max-height:min(58vh,560px)}
@@ -100,7 +101,7 @@ button.go.sm{font-size:15px;padding:10px 18px 10px 22px;letter-spacing:.24em}
   <div id="hudroot">
     <div class="ui" id="tl"><div class="lbl">Score</div><div class="big" id="score">0</div><div id="combo"></div></div>
     <div class="ui" id="tr"><div class="lbl">Wave</div><div class="big" id="wave">1</div><div class="mid" id="left"></div></div>
-    <div class="ui" id="bl"><div class="lbl">Position integrity</div><div class="mid" id="hp">100</div><div id="bar"><i></i></div></div>
+    <div class="ui" id="bl"><div class="lbl">Health</div><div class="mid" id="hp">100</div><div id="bar"><i></i></div></div>
     <div class="ui" id="br"><div class="lbl">AKM · 7.62</div><div class="big" id="ammo">30<small> / 360</small></div></div>
     <div class="ui" id="banner"><div class="t"></div><div class="s"></div></div>
     <div class="ui" id="pops"></div>
@@ -132,6 +133,7 @@ button.go.sm{font-size:15px;padding:10px 18px 10px 22px;letter-spacing:.24em}
     <div class="lb"><div class="nrow" id="nrow"><input id="pname" maxlength="16" placeholder="Your name" autocomplete="off" spellcheck="false"><button class="go sm" id="psave">Save score</button></div>
       <div class="lbmsg" id="overMsg"></div><div class="board" id="overBoard"></div><div class="myrank" id="overMe"></div></div>
     <button class="go" id="again">Redeploy</button>
+    <button class="go alt sm" id="home" style="margin-top:12px">Home</button>
   </div>
 </div>
 <script>setTimeout(()=>{if(!window.__booted){const m=document.getElementById('loadmsg');if(m)m.textContent='Could not load the 3D engine. Check your connection and reload.';}},15000);</script>
@@ -495,8 +497,8 @@ const drones=[];
 function spawnDrone(type,opt={}){
   const w=G.wave,spread=clamp(.9+w*.18,0,2.0),a=opt.a??rr(-spread,spread);let d;
   if(type==='S'){const Rr=rr(560,720),alt=rr(60,130),m=shahedProto.clone();d={type,m,hp:3,max:3,speed:Math.min(80,50+w*2.4),hitR:2.15,state:'cruise',alt,pts:150,
-    target:(()=>{const ta=rr(-1.4,1.4),tr=rr(6,13);return new V3(Math.sin(ta)*tr,0,-Math.cos(ta)*tr)})(),dmg:17,sc:1.7};m.position.set(Math.sin(a)*Rr,alt,-Math.cos(a)*Rr)}
-  else{const Rr=rr(300,390),alt=rr(14,42),m=fpvProto.clone();d={type,m,hp:1,max:1,speed:Math.min(47,29+w*1.7),hitR:.82,state:'run',alt,pts:100,target:null,dmg:9,sc:.75,ph:R()*6.28};m.position.set(Math.sin(a)*Rr,alt,-Math.cos(a)*Rr)}
+    target:(()=>{const ta=rr(-1.4,1.4),tr=rr(6,13);return new V3(Math.sin(ta)*tr,0,-Math.cos(ta)*tr)})(),dmg:30,ex:rr(-.8,.8),ez:rr(-.8,.8),sc:1.7};m.position.set(Math.sin(a)*Rr,alt,-Math.cos(a)*Rr)}
+  else{const Rr=rr(300,390),alt=rr(14,42),m=fpvProto.clone();d={type,m,hp:1,max:1,speed:Math.min(47,29+w*1.7),hitR:.82,state:'run',alt,pts:100,target:null,dmg:18,sc:.75,ph:R()*6.28};m.position.set(Math.sin(a)*Rr,alt,-Math.cos(a)*Rr)}
   if(opt.pos)d.m.position.copy(opt.pos);
   d.target&&(d.target.y=tH(d.target.x,d.target.z));d.dir=new V3().subVectors(d.target||camera.position,d.m.position).setY(0).normalize();d.t=0;d.smk=0;d.prop=d.m.getObjectByName('prop');
   if(isTouch)d.hitR*=1.45;d.m.traverse(o=>{if(o.isMesh&&o.material!==M.prop)o.castShadow=true});scene.add(d.m);drones.push(d);return d}
@@ -507,24 +509,29 @@ function updateDrones(dt){let nS=1e9,nF=1e9,vS=0,dive=0;G.eta=9;
       d.smk-=dt;if(d.smk<=0){d.smk=.022;const g=rr(.015,.04);smoke.emit({x:p.x,y:p.y,z:p.z,vx:rr(-1,1),vy:rr(0,2),vz:rr(-1,1),ttl:rr(2,3.6),s0:1,s1:rr(3.5,6),r:g*1.2,g:g,b:g,a:.75});
         const h=R();fire.emit({x:p.x+rr(-.4,.4),y:p.y+rr(-.4,.4),z:p.z+rr(-.4,.4),vx:d.vel.x*.4,vy:d.vel.y*.4+2,vz:d.vel.z*.4,ttl:rr(.2,.5),s0:1.4,s1:rr(2,3.4),r:lerp(2,6,h),g:lerp(.5,2.2,h),b:.2,a:.9,cool:2})}
       if(p.y<=tH(p.x,p.z)+.4){p.y=tH(p.x,p.z)+.4;explosion(p.clone(),1.9,true);removeDrone(i)}continue}
-    if(d.type==='S'){_v.subVectors(d.target,p);const hd=Math.hypot(_v.x,_v.z);
+    if(d.type==='S'){if(d.state==='dive'&&!d.lock){d.target.set(P.x+d.ex,0,P.z+d.ez);d.target.y=tH(d.target.x,d.target.z);if(p.distanceTo(d.target)/(d.speed*1.22)<1.6)d.lock=1}
+      _v.subVectors(d.target,p);const hd=Math.hypot(_v.x,_v.z);
       if(d.state==='cruise'){_v.y=(d.alt-p.y)*.6;if(hd<d.alt*2.1)d.state='dive';_v.x+=Math.sin(d.t*.5+d.alt)*hd*.08;_v.z+=Math.cos(d.t*.4+d.alt)*hd*.04}
       _v.normalize();d.dir.lerp(_v,1-Math.exp(-dt*(d.state==='dive'?1.6:.9))).normalize();p.addScaledVector(d.dir,d.speed*(d.state==='dive'?1.22:1)*dt);
       _v2.copy(p).add(d.dir);d.m.lookAt(_v2);if(d.prop)d.prop.rotation.z+=dt*70;
       const dist=p.distanceTo(camera.position);if(dist<nS){nS=dist;vS=d.speed;dive=d.state==='dive'?1:0}if(d.state==='dive'){G.eta=Math.min(G.eta,p.distanceTo(d.target)/(d.speed*1.22));if(!d.warned){d.warned=1;sWarn()}}
       if(p.y<=tH(p.x,p.z)+.4||p.distanceTo(d.target)<2){impact(d,i);continue}}
-    else{_v.subVectors(camera.position,p);const dist=_v.length();_v.normalize();d.dir.lerp(_v,1-Math.exp(-dt*3.2)).normalize();if(dist<d.speed*2.2){G.eta=Math.min(G.eta,dist/(d.speed*1.25));if(!d.warned){d.warned=1;sWarn()}}
+    else{_v.subVectors(camera.position,p);const dist=_v.length();_v.normalize();if(dist<7&&d.dir.dot(_v)<.25){impact(d,i);continue}if(dist>22)d.dir.lerp(_v,1-Math.exp(-dt*3.2)).normalize();if(dist<d.speed*2.2){G.eta=Math.min(G.eta,dist/(d.speed*1.25));if(!d.warned){d.warned=1;sWarn()}}
       const fade=clamp((dist-22)/70,0,1);_v2.crossVectors(d.dir,UP).normalize();
       p.addScaledVector(d.dir,d.speed*(dist<45?1.25:1)*dt).addScaledVector(_v2,Math.cos(d.t*2.1+d.ph)*7*fade*dt);p.y+=Math.sin(d.t*3.3+d.ph)*3.5*fade*dt;
-      const gh=tH(p.x,p.z)+1.4;if(p.y<gh&&dist>6)p.y=gh;
+      const gh=tH(p.x,p.z)+1.4;if(p.y<gh&&dist>12)p.y=gh;else if(p.y<=gh-1.2){impact(d,i);continue}
       _v3.copy(p).add(d.dir);d.m.lookAt(_v3);d.m.rotateX(.35);d.m.rotateZ(Math.cos(d.t*2.1+d.ph)*.35*fade);
-      if(dist<nF)nF=dist;if(dist<1.9){impact(d,i);continue}}
+      if(dist<nF)nF=dist;if(dist<1.5){impact(d,i);continue}}
     if(d.hp<d.max){d.smk-=dt;if(d.smk<=0){d.smk=.035;const g=.05;smoke.emit({x:p.x,y:p.y,z:p.z,vx:rr(-.5,.5),vy:rr(0,1),vz:rr(-.5,.5),ttl:rr(1,2)*(d.hp<=d.max/2?1.5:1),s0:.5,s1:rr(1.6,3),r:g,g:g,b:g,a:d.hp<=d.max/2?.6:.3});
       if(d.hp<=1&&d.type==='S'&&R()<.5)fire.emit({x:p.x,y:p.y,z:p.z,ttl:.25,s0:.7,s1:1.4,r:6,g:2.2,b:.5,a:1,cool:2})}}}
   sEngines(nS,nF,vS,dive)}
 function removeDrone(i){scene.remove(drones[i].m);drones.splice(i,1)}
 function impact(d,i){const p=d.m.position.clone();p.y=Math.max(p.y,tH(p.x,p.z)+.3);explosion(p,d.sc*1.25,d.type==='S');removeDrone(i);
-  G.hp=Math.max(0,G.hp-d.dmg);G.combo=0;G.dmgFx=1;G.slow=Math.max(G.slow,.5);sConc(clamp(1.2-p.distanceTo(camera.position)/30,.35,1));for(let k=0;k<26;k++){const v=rv(1);smoke.emit({x:camera.position.x+v[0]*3,y:camera.position.y+2.5+R()*3,z:camera.position.z+v[2]*3,vx:v[0],vy:-rr(2,5),vz:v[2],ttl:rr(.8,1.8),s0:.05,s1:rr(.15,.5),r:.1,g:.08,b:.06,a:.8,grav:6})}hudDirty=true;pop('-'+d.dmg+' POSITION HIT',false,true);if(G.hp<=0)gameOver()}
+  const dd=p.distanceTo(camera.position),f=d.type==='S'?clamp(1-(dd-2.4)/8,0,1):clamp(1-(dd-1.6)/3.4,0,1),dmg=Math.round(d.dmg*Math.pow(f,1.3));
+  if(dmg<=0){pop('NEAR MISS  ·  '+dd.toFixed(0)+' M');return}
+  const k=dmg/d.dmg;G.hp=Math.max(0,G.hp-dmg);G.combo=0;G.dmgFx=clamp(.35+k,0,1);G.slow=Math.max(G.slow,.25+k*.3);sConc(clamp(k*1.1,.3,1));
+  for(let n=0;n<8+k*22;n++){const v=rv(1);smoke.emit({x:camera.position.x+v[0]*3,y:camera.position.y+2.5+R()*3,z:camera.position.z+v[2]*3,vx:v[0],vy:-rr(2,5),vz:v[2],ttl:rr(.8,1.8),s0:.05,s1:rr(.15,.5),r:.1,g:.08,b:.06,a:.8,grav:6})}
+  hudDirty=true;pop('-'+dmg+(k>.9?'  DIRECT HIT':'  BLAST  ·  '+dd.toFixed(0)+' M'),false,true);if(G.hp<=0)gameOver()}
 function killDrone(d,i,dist){if(d.type==='S'){explosion(d.m.position.clone(),.7,false);d.state='fall';d.vel=d.dir.clone().multiplyScalar(d.speed*.8);d.vel.y+=6;d.spin=rr(2.5,5)*(R()<.5?-1:1);d.smk=0}else{explosion(d.m.position.clone(),d.sc,false);removeDrone(i)}G.kills++;P.punch=1;
   if(!G.queue.length&&!drones.some(o=>o!==d&&o.hp>0)){G.slow=1.8;sSlow()}
   const now=time;G.combo=(now-G.lastKill<4.5)?G.combo+1:1;G.lastKill=now;const mult=1+Math.min(G.combo-1,6)*.25;
@@ -696,7 +703,7 @@ function startWave(n){G.wave=n;G.queue=[];const nS=Math.min(9,2+n),nF=n<2?0:Math
   for(let i=0;i<nS;i++){G.queue.push({t,type:'S'});t+=gap*rr(.7,1.2)}let tf=6;for(let i=0;i<nF;i++){G.queue.push({t:tf,type:'F'});tf+=rr(2.2,4.2)}
   if(n>1)sSiren(7);G.queue.sort((a,b)=>a.t-b.t);G.waveT=0;G.total=nS+nF;G.k0=G.kills;banner('WAVE '+n,nS+' SHAHED'+(nF?'  ·  '+nF+' FPV':'')+'  ·  INBOUND');sBeep();hudDirty=true}
 function resetGame(){for(let i=drones.length-1;i>=0;i--)removeDrone(i);Object.assign(G,{res:360,slow:0,ts:1,dieT:0,introT:0,racked:0,score:0,wave:0,hp:100,ammo:30,kills:0,shots:0,hits:0,combo:0,lastKill:-9,queue:[],inter:0,dmgFx:0});P.reload=0;P.adsOn=false;P.x=0;P.z=.6;P.y=0;P.vy=0;P.crouch=0;trauma=0;$('bAds').classList.remove('on');hudDirty=true}
-function setState(s){G.state=s;wrap.classList.toggle('play',s==='play');wrap.classList.toggle('intro',s==='intro');for(const id of['menu','pause','over','rank'])$(id).classList.toggle('show',id===s)}
+function setState(s){G.state=s;wrap.classList.toggle('play',s==='play');wrap.classList.toggle('intro',s==='intro');if(s==='menu')for(let i=drones.length-1;i>=0;i--)removeDrone(i);for(const id of['menu','pause','over','rank'])$(id).classList.toggle('show',id===s)}
 function gameOver(){if(G.state==='over')return;const acc=G.shots?Math.round(G.hits/G.shots*100):0;$('sScore').textContent=G.score;$('sWave').textContent=G.wave;$('sKills').textContent=G.kills;$('sAcc').textContent=acc+'%';
   const nb=G.score>G.best;if(nb){G.best=G.score;try{localStorage.setItem('duskwatch_best',G.best)}catch(e){}}$('overtag').textContent=nb?'New best score':'Best · '+G.best;P.fire=false;G.slow=2.4;G.dieT=0;sSlow();
   G.final={score:G.score,wave:G.wave,kills:G.kills,acc};
@@ -720,12 +727,13 @@ function renderBoard(el,meEl,d){el.textContent='';const row=(cls,cells)=>{const 
 async function loadBoard(boardEl,meEl,msgEl,call){if(!LB_ON){boardEl.textContent='';meEl.textContent='';msgEl.textContent='Ranking is not connected yet';return}
   msgEl.textContent='Loading…';try{const d=await call();msgEl.textContent='';renderBoard(boardEl,meEl,d);return d}catch(e){msgEl.textContent='Could not reach the ranking server';console.warn(e)}}
 function openRank(){setState('rank');loadBoard($('rankBoard'),$('rankMe'),$('rankMsg'),()=>rpc('aimdrone_board',{p_player:PID}))}
-async function submitScore(){const nm=$('pname').value.trim().slice(0,16);if(!nm){$('overMsg').textContent='Enter a name to post your score';$('pname').focus();return}PNAME=nm;try{localStorage.setItem('aimdrone_name',nm)}catch(e){}
+async function submitScore(){if($('nrow').classList.contains('done')||$('psave').disabled)return;const nm=$('pname').value.trim().slice(0,16);if(!nm){$('overMsg').textContent='Enter a name to post your score';$('pname').focus();return}PNAME=nm;try{localStorage.setItem('aimdrone_name',nm)}catch(e){}
   const f=G.final||{score:0,wave:0,kills:0,acc:0};$('psave').disabled=true;const d=await loadBoard($('overBoard'),$('overMe'),$('overMsg'),()=>rpc('aimdrone_submit',{p_player:PID,p_name:nm,p_score:f.score,p_wave:f.wave,p_kills:f.kills,p_acc:f.acc}));$('psave').disabled=false;
+  if(d&&d.me){$('nrow').classList.add('done');$('pname').disabled=true;$('pname').value=d.me.name}
   if(d&&d.me)$('overMsg').textContent=d.me.score>f.score?'Saved · your best stays '+Number(d.me.score).toLocaleString('en-US'):'Score saved'}
-function overRank(){$('pname').value=PNAME;$('nrow').style.display=LB_ON?'':'none';if(!LB_ON){loadBoard($('overBoard'),$('overMe'),$('overMsg'));return}
-  if(PNAME)submitScore();else loadBoard($('overBoard'),$('overMe'),$('overMsg'),()=>rpc('aimdrone_board',{p_player:PID})).then(()=>{$('overMsg').textContent='Enter a name to post your score'})}
-$('showRank').addEventListener('click',openRank);$('rankClose').addEventListener('click',()=>setState('menu'));$('psave').addEventListener('click',submitScore);$('pname').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')submitScore()});
+function overRank(){$('pname').value=PNAME;$('pname').disabled=false;$('nrow').classList.remove('done');$('nrow').style.display=LB_ON?'':'none';if(!LB_ON){loadBoard($('overBoard'),$('overMe'),$('overMsg'));return}
+  loadBoard($('overBoard'),$('overMe'),$('overMsg'),()=>rpc('aimdrone_board',{p_player:PID})).then(()=>{if(!$('nrow').classList.contains('done'))$('overMsg').textContent=PNAME?'Press Save score to post this run':'Enter a name to post your score'})}
+$('home').addEventListener('click',()=>{resetGame();P.fire=false;setState('menu')});$('showRank').addEventListener('click',openRank);$('rankClose').addEventListener('click',()=>setState('menu'));$('psave').addEventListener('click',submitScore);$('pname').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')submitScore()});
 
 /* ---------- shooting ---------- */
 const fwd=new V3(),right=new V3(),upv=new V3(),mpos=new V3();
@@ -737,7 +745,7 @@ function shoot(){
   camera.getWorldDirection(fwd);right.crossVectors(fwd,UP).normalize();upv.crossVectors(right,fwd);
   const a=R()*6.283,rd=Math.sqrt(R())*sp,dir=_v.copy(fwd).addScaledVector(right,Math.cos(a)*rd).addScaledVector(upv,Math.sin(a)*rd).normalize().clone(),o=camera.position;
   // sandbag wall block
-  let tMax=1e9,wallHit=null;{const A=dir.x*dir.x+dir.z*dir.z,B=2*(o.x*dir.x+o.z*dir.z),C=o.x*o.x+o.z*o.z-WALL.R*WALL.R,D=B*B-4*A*C;if(D>0&&A>1e-6){const t=(-B+Math.sqrt(D))/(2*A),y=o.y+dir.y*t,x=o.x+dir.x*t,z=o.z+dir.z*t;if(t>0&&y<WALL.H&&y>0&&Math.abs(Math.atan2(x,-z))<WALL.A+.05){tMax=t;wallHit=new V3(x,y,z)}}}
+  let tMax=1e9,wallHit=null;{const A=dir.x*dir.x+dir.z*dir.z,B=2*(o.x*dir.x+o.z*dir.z),C=o.x*o.x+o.z*o.z-WALL.R*WALL.R,D=B*B-4*A*C;if(D>0&&A>1e-6){for(const sg of[-1,1]){const t=(-B+sg*Math.sqrt(D))/(2*A),y=o.y+dir.y*t,x=o.x+dir.x*t,z=o.z+dir.z*t;if(t>0.05&&t<tMax&&y<WALL.H&&y>0&&Math.abs(Math.atan2(x,-z))<WALL.A+.05){tMax=t;wallHit=new V3(x,y,z)}}}}
   let best=null,bt=tMax,bi=-1;for(let i=0;i<drones.length;i++){const d=drones[i];if(d.hp<=0)continue;_v2.subVectors(d.m.position,o);const tc=_v2.dot(dir);if(tc<0)continue;const d2=_v2.lengthSq()-tc*tc,r=d.hitR;if(d2>r*r)continue;const t=tc-Math.sqrt(r*r-d2);if(t<bt){bt=t;best=d;bi=i}}
   let end;if(best){end=o.clone().addScaledVector(dir,bt);G.hits++;best.hp--;G.score+=10;sparks(end,best.hp<=0?4:8);hit=1;sHit();if(best.hp<=0)killDrone(best,bi,bt);else best.smk=0}
   else if(wallHit){end=wallHit;dust(end,.7)}
@@ -871,17 +879,17 @@ function update(dt){
     if(!G.queue.length&&!drones.length&&G.slow<=0){if(G.inter<=0){G.inter=5.5;const bonus=Math.round(250*G.wave*(G.kills-G.k0)/Math.max(1,G.total)/5)*5;G.score+=bonus;G.hp=Math.min(100,G.hp+18);banner('WAVE '+G.wave+(bonus?' CLEARED':' OVER'),(bonus?'+'+bonus+' BONUS  ·  ':'')+'POSITION REPAIRED');hudDirty=true}else{G.inter-=dt;if(G.inter<=0){G.inter=0;startWave(G.wave+1)}}}}
   if(playing||G.state==='dying')updateDrones(dt);else sEngines(1e9,1e9,0);
   // player
-  if(playing&&!isTouch){let mx=(keys.KeyD?1:0)-(keys.KeyA?1:0),mz=(keys.KeyS?1:0)-(keys.KeyW?1:0);const l=Math.hypot(mx,mz)||1,sp=lerp(2.6,1.3,P.ads)*(1-.45*P.crouch),sy=Math.sin(yaw),cyw=Math.cos(yaw);
-    const tx=(mx*cyw+mz*sy)/l*sp,tz=(-mx*sy+mz*cyw)/l*sp;P.vx=lerp(P.vx,tx,1-Math.exp(-dt*10));P.vz=lerp(P.vz,tz,1-Math.exp(-dt*10));P.x+=P.vx*dt;P.z+=P.vz*dt;const r=Math.hypot(P.x,P.z);if(r>2.55){P.x*=2.55/r;P.z*=2.55/r}}else{P.vx*=.8;P.vz*=.8}
+  if(playing&&!isTouch){let mx=(keys.KeyD?1:0)-(keys.KeyA?1:0),mz=(keys.KeyS?1:0)-(keys.KeyW?1:0);const l=Math.hypot(mx,mz)||1,sp=lerp((keys.ShiftLeft||keys.ShiftRight)&&P.crouch<.3?4.6:2.6,1.3,P.ads)*(1-.45*P.crouch),sy=Math.sin(yaw),cyw=Math.cos(yaw);
+    const tx=(mx*cyw+mz*sy)/l*sp,tz=(-mx*sy+mz*cyw)/l*sp;P.vx=lerp(P.vx,tx,1-Math.exp(-dt*10));P.vz=lerp(P.vz,tz,1-Math.exp(-dt*10));P.x+=P.vx*dt;P.z+=P.vz*dt;{let r=Math.hypot(P.x,P.z);if(r>2.75&&r<4.3&&Math.abs(Math.atan2(P.x,-P.z))<WALL.A+.12){const k=(r<3.5?2.75:4.3)/r;P.x*=k;P.z*=k;r*=k}if(r>12){P.x*=12/r;P.z*=12/r}}}else{P.vx*=.8;P.vz*=.8}
   {const cr=playing&&(keys.ControlLeft||keys.ControlRight||keys.KeyC)?1:0;P.crouch=lerp(P.crouch,cr,1-Math.exp(-dt*12));
    if(playing&&keys.Space&&P.y<=0&&!P.jl){P.vy=4.4;P.jl=1;P.crouch*=.5}if(!keys.Space)P.jl=0;
    if(P.y>0||P.vy>0){P.vy-=12.5*dt;P.y+=P.vy*dt;if(P.y<=0){P.y=0;P.vy=0;trauma=Math.min(1,trauma+.12);P.recoil=Math.max(P.recoil,.5)}}}
-  const spd=Math.hypot(P.vx,P.vz)*(P.y>0?0:1);P.bob+=dt*spd*3.2;
+  const spd=Math.hypot(P.vx,P.vz)*(P.y>0?0:1);P.bob+=dt*Math.min(spd,3.4)*3.2;
   P.ads=lerp(P.ads,P.adsOn&&P.reload<=0?1:0,1-Math.exp(-dt*14));P.spread=Math.max(0,P.spread-dt*.03);
   if(G.state==='menu'||G.state==='rank'){yaw=Math.sin(time*.07)*.5+.25;pitch=.1+Math.sin(time*.11)*.05}
   kickP=lerp(kickP,0,1-Math.exp(-dt*9));kickY=lerp(kickY,0,1-Math.exp(-dt*9));pitch=clamp(pitch+kickP*dt*5,-1.2,1.45);yaw+=kickY*dt*5;
   trauma=Math.max(0,trauma-dt*1.5);const sh=trauma*trauma;
-  camera.position.set(P.x,1.62-P.crouch*.64+P.y+Math.sin(P.bob*2)*.022*Math.min(1,spd),P.z);
+  camera.position.set(P.x,tH(P.x,P.z)+1.62-P.crouch*.64+P.y+Math.sin(P.bob*2)*.022*Math.min(1,spd),P.z);
   camera.rotation.set(pitch+kickP+(N1(time*23,1,256)-.5)*.09*sh,yaw+kickY+(N1(time*23,9,256)-.5)*.09*sh,(N1(time*19,5,256)-.5)*.08*sh);
   if(G.state==='dying'||G.state==='over'){G.dieT+=dt;const k=sstep(0,1.0,G.dieT);camera.position.y-=k*1.05;camera.rotation.z+=k*.55;camera.rotation.x-=k*.2}
   P.punch=Math.max(0,P.punch-dt*3);camera.fov=lerp(baseFov,baseFov*.62,P.ads)-P.punch*P.punch*3;camera.updateProjectionMatrix();camera.updateMatrixWorld();
