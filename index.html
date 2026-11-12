@@ -60,8 +60,8 @@ canvas#hud{pointer-events:none}
 .touch.play .tb{display:flex}
 #bFire{right:22px;bottom:74px;width:96px;height:96px;border-color:rgba(255,120,90,.8)}
 #bFire.on{background:rgba(255,90,60,.35)}
-#bAds{left:22px;bottom:100px;width:66px;height:66px}#bAds.on{background:rgba(255,180,84,.35);border-color:var(--amber)}
-#bRel{left:100px;bottom:84px;width:58px;height:58px}
+#bAds{right:37px;bottom:184px;width:66px;height:66px}#bAds.on{background:rgba(255,180,84,.35);border-color:var(--amber)}
+#bRel{right:132px;bottom:62px;width:58px;height:58px}
 #bPause{right:50%;margin-right:-20px;top:10px;width:40px;height:40px;border-radius:8px;font-size:15px}
 .touch #bl{bottom:186px}.touch #br{bottom:16px}
 /* overlays */
@@ -643,15 +643,55 @@ function buildGun(){
   // hands + sleeves
   const cap=(r,a,b,mat)=>{const A=new V3(...a),B=new V3(...b),m=new THREE.Mesh(new THREE.CapsuleGeometry(r,A.distanceTo(B),5,12),mat);m.position.copy(A).add(B).multiplyScalar(.5);m.quaternion.setFromUnitVectors(UP,B.clone().sub(A).normalize());gun.add(m);return m};
   const hz=Zu(.37);
-  add(RB(.072,.03,.1,.014),M.glove,-.003,-.046,hz);add(RB(.014,.026,.088,.006),M.rubber,.032,-.03,hz);
-  for(let i=0;i<4;i++){const z=hz+.036-i*.024;cap(.0098,[.031,-.042,z],[.0305,-.012,z-.002],M.gloveT);cap(.0092,[.0305,-.012,z-.002],[.022,.008,z-.004],M.gloveT)}
-  cap(.011,[-.032,-.03,hz+.02],[-.031,-.006,hz-.03],M.gloveT);cap(.0105,[-.031,-.006,hz-.03],[-.027,.004,hz-.06],M.gloveT);
-  const la=cap(.038,[-.035,-.09,hz+.03],[-.36,-.5,hz+.6],M.camo);{const b=new THREE.Mesh(new THREE.CylinderGeometry(.0405,.041,.04,20),new THREE.MeshStandardMaterial({color:0x12306f,roughness:.75}));b.position.y=-.33;la.add(b);
-    const cuff=new THREE.Mesh(new THREE.CylinderGeometry(.036,.04,.03,20),M.glove);cuff.position.y=-.39;la.add(cuff)}
-  add(RB(.05,.085,.06,.018),M.glove,.004,-.085,Zu(.03),-.3);add(RB(.016,.03,.05,.006),M.rubber,.027,-.06,Zu(.045),-.3);
-  cap(.0095,[.021,-.05,Zu(.05)],[.0205,-.04,Zu(.1)],M.gloveT);cap(.0105,[-.021,-.045,Zu(.02)],[-.019,-.032,Zu(.07)],M.gloveT);
-  cap(.038,[.03,-.12,Zu(.01)],[.22,-.5,Zu(-.42)],M.camo);
-  gun.traverse(m=>{if(!m.isMesh)return;if([M.steel,M.steelD,M.lam,M.bake2,M.grip].includes(m.material)&&m.parent!==la)boxUV(m,m.material===M.lam?5:8);if(!m.material.transparent&&!m.material.isMeshBasicMaterial)m.castShadow=m.receiveShadow=true});
+  {const hsh=(x,y)=>{const s=Math.sin(x*127.1+y*311.7)*43758.5453;return s-Math.floor(s)},PI=Math.PI;
+   // knit: ribs across the hand, offset stitches along each rib
+   let S=128,h=new Float32Array(S*S);for(let y=0,i=0;y<S;y++)for(let x=0;x<S;x++,i++){const u=x/S,vv=y/S*12,row=Math.floor(vv),rib=Math.pow(Math.sin((vv-row)*PI),.7),st=Math.abs(Math.sin((u*20+(row%2)*.5)*PI));h[i]=rib*(.55+.45*st)}
+   const kc=paint(S,(u,v,i,o)=>{const k=.5+.62*h[i]+(hsh(i%S,(i/S)|0)-.5)*.16;o[0]=.215*k;o[1]=.215*k;o[2]=.19*k}),kn=normalC(h,S,2.4);
+   M.knit=new THREE.MeshStandardMaterial({map:tex(kc,true,2,2.4),normalMap:tex(kn,false,2,2.4),roughness:.97});
+   const cm=tex(kc,true,3,1.2),cn=tex(kn,false,3,1.2);cm.rotation=cn.rotation=PI/2;M.cuff=new THREE.MeshStandardMaterial({map:cm,normalMap:cn,roughness:.97,color:0xb9b9b9});
+   // skin: pores, fine transverse wrinkles, deeper creases over the joints
+   const g=(v,c)=>Math.exp(-Math.pow((v-c)/.024,2));h=new Float32Array(S*S);
+   for(let y=0,i=0;y<S;y++)for(let x=0;x<S;x++,i++){const u=x/S,v=y/S,cr=g(v,.33)+g(v,.67);h[i]=.5+(hsh(x,y)-.5)*.22+.07*Math.sin(v*PI*90+Math.sin(u*PI*6)*2.2)-cr*.42*(.55+.45*Math.sin(v*PI*150+u*9))}
+   const sc=paint(S,(u,v,i,o)=>{const cr=Math.min(1,g(v,.33)+g(v,.67)),n=(hsh(i%S+7,(i/S|0)+3)-.5)*.05,tipk=sstep(.8,1,v)*.5;mix3([.69+n,.5+n,.4+n],[.66,.36,.3],cr*.45+tipk*.5,o)});
+   M.skin=new THREE.MeshStandardMaterial({map:tex(sc,true),normalMap:tex(normalC(h,S,1.5),false),roughness:.56});
+   const nc=paint(32,(u,v,i,o)=>{const e=sstep(.74,.9,v),l=sstep(.22,.05,v);mix3([.8,.6,.55],[.93,.9,.85],Math.max(e,l*.5),o)});
+   M.nail=new THREE.MeshPhysicalMaterial({map:tex(nc,true),roughness:.28,clearcoat:.7,clearcoatRoughness:.25});
+   M.sleeve=new THREE.MeshStandardMaterial({color:0x6b6557,roughness:.95,normalMap:M.glove.normalMap})}
+  const SK=M.skin,KN=M.knit,L3=(a,b,t)=>[lerp(a[0],b[0],t),lerp(a[1],b[1],t),lerp(a[2],b[2],t)];
+  // swept tube with an elliptical, per-point cross-section: pts, [width,thickness] per point, hint = width axis
+  const tube=(pts,rad,hint,mat,o={})=>{const n=pts.length,cv=new THREE.CatmullRomCurve3(pts.map(q=>new V3(...q)),false,'centripetal'),MM=o.m||28,NN=o.n||20,pos=[],uv=[],idx=[],H=new V3(...hint),T=new V3,A=new V3,B=new V3,C=new V3,sq=o.sq||1,v0=o.v0||0,v1=o.v1===undefined?1:o.v1;
+    for(let j=0;j<=MM;j++){const t=j/MM,f=t*(n-1),i0=Math.min(n-2,f|0),k=sstep(0,1,f-i0);let rw=lerp(rad[i0][0],rad[i0+1][0],k),rt=lerp(rad[i0][1],rad[i0+1][1],k);
+      if(o.joints)for(const q of o.joints){const d=(f-q)/.17,e=Math.exp(-d*d)*.075;rw*=1+e;rt*=1+e}
+      if(o.tip&&t>1-o.tip){const e=(t-(1-o.tip))/o.tip,s=Math.sqrt(Math.max(0,1-e*e));rw*=s;rt*=s*(o.flat?lerp(1,o.flat,e):1)}
+      cv.getPoint(t,C);cv.getTangent(t,T);A.copy(H).addScaledVector(T,-H.dot(T)).normalize();B.crossVectors(T,A);
+      for(let i=0;i<=NN;i++){const a=i/NN*6.28318,ca=Math.cos(a),sa=Math.sin(a),x=Math.sign(ca)*Math.pow(Math.abs(ca),sq)*rw,y=Math.sign(sa)*Math.pow(Math.abs(sa),sq)*rt;pos.push(C.x+A.x*x+B.x*y,C.y+A.y*x+B.y*y,C.z+A.z*x+B.z*y);uv.push(i/NN,lerp(v0,v1,t))}}
+    for(let j=0;j<MM;j++)for(let i=0;i<NN;i++){const a=j*(NN+1)+i,b=a+NN+1;idx.push(a,b,a+1,b,b+1,a+1)}
+    const ge=new THREE.BufferGeometry();ge.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));ge.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));ge.setIndex(idx);ge.computeVertexNormals();
+    {const nr=ge.attributes.normal;for(let j=0;j<=MM;j++){const a=j*(NN+1),b=a+NN,x=nr.getX(a)+nr.getX(b),y=nr.getY(a)+nr.getY(b),z=nr.getZ(a)+nr.getZ(b),l=Math.hypot(x,y,z)||1;nr.setXYZ(a,x/l,y/l,z/l);nr.setXYZ(b,x/l,y/l,z/l)}}
+    const m=new THREE.Mesh(ge,mat);m.material.side=THREE.DoubleSide;gun.add(m);return m};
+  const hem=(c,dir,rw,rt,hint,mat,w=.0024)=>{const d=new V3(...dir).normalize().multiplyScalar(w);tube([[c[0]-d.x,c[1]-d.y,c[2]-d.z],c,[c[0]+d.x,c[1]+d.y,c[2]+d.z]],[[rw-.0006,rt-.0006],[rw+.0016,rt+.0016],[rw-.0006,rt-.0006]],hint,mat,{m:8})};
+  const nail=(c,dir,nrm,w,l)=>{const m=new THREE.Mesh(new THREE.SphereGeometry(1,16,12),M.nail),Y=new V3(...dir).normalize(),Z=new V3(...nrm);Z.addScaledVector(Y,-Z.dot(Y)).normalize();const X=new V3().crossVectors(Y,Z);m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(X,Y,Z));m.position.set(...c);m.scale.set(w,l,.0021);gun.add(m)};
+  const digit=(p,r,hint,o={})=>{tube(p,r.map(q=>[q*1.08,q*.94]),hint,SK,{joints:[1,2],tip:.1,flat:.8,m:34,...o});const e=L3(p[0],p[1],o.g||.62),re=lerp(r[0],r[1],o.g||.62);
+    tube([p[0],L3(p[0],p[1],.3),e],[r[0],lerp(r[0],r[1],.3),re].map(q=>[q*1.08+.0013,q*.94+.0013]),hint,KN,{m:10,v0:0,v1:.25});hem(e,[p[1][0]-p[0][0],p[1][1]-p[0][1],p[1][2]-p[0][2]],re*1.08+.0013,re*.94+.0013,hint,KN)};
+  // ---- support hand: fingerless knit glove, palm on the left of the handguard, thumb up the side
+  tube([[-.052,-.118,hz+.036],[-.044,-.088,hz+.02],[-.038,-.06,hz+.008],[-.031,-.037,hz+.001],[-.021,-.03,hz]],[[.028,.021],[.04,.02],[.046,.0185],[.046,.014],[.041,.009]],[0,0,1],KN,{sq:.86,tip:.14,m:32,n:28});
+  for(let i=0;i<4;i++){const z=hz+.036-i*.0235,k=1-i*.055,s=add(new THREE.SphereGeometry(1,14,10),KN,-.0315,-.0335,z);s.scale.set(.0112*k,.0105*k,.0118*k);
+    digit([[-.03,-.034,z],[-.003,-.0415,z-.002],[.0245,-.038,z-.003],[.0325,-.015,z-.004]],[.0098*k,.0092*k,.0086*k,.0077*k],[0,0,1])}
+  {const T0=[-.043,-.078,hz+.028],T1=[-.04,-.052,hz+.037],T2=[-.0365,-.029,hz+.027],T3=[-.0348,-.007,hz+.013],T4=[-.0338,.014,hz+.004],th=[.91,0,.41],e=L3(T2,T3,.32);
+   tube([T1,T2,T3,T4],[[.0152,.014],[.0136,.0122],[.012,.0104],[.0108,.0088]],th,SK,{joints:[1,2],tip:.11,flat:.75,m:36});
+   tube([T0,T1,T2,e],[[.0185,.0165],[.017,.0158],[.0152,.0138],[.0143,.0128]],th,KN,{m:22,v0:0,v1:.5});hem(e,[T3[0]-T2[0],T3[1]-T2[1],T3[2]-T2[2]],.0143,.0128,th,KN);
+   nail([-.0375,.0079,hz+.0146],[.001,.021,-.009],[-.41,.36,.84],.0062,.008)}
+  tube([[-.064,-.156,hz+.058],[-.058,-.137,hz+.047],[-.0515,-.116,hz+.035]],[[.0312,.0248],[.0302,.0238],[.0296,.0226]],[0,0,1],M.cuff,{sq:.9,m:14,n:28});
+  hem([-.0515,-.116,hz+.035],[.007,.021,-.012],.0296,.0226,[0,0,1],M.cuff);hem([-.0598,-.143,hz+.0505],[.007,.021,-.012],.0306,.0242,[0,0,1],M.cuff);
+  tube([[-.061,-.146,hz+.052],[-.076,-.2,hz+.082],[-.2,-.62,hz+.33]],[[.0345,.03],[.04,.036],[.047,.043]],[0,0,1],M.sleeve,{m:16,n:24});hem([-.0615,-.148,hz+.053],[.015,.054,-.03],.0345,.03,[0,0,1],M.sleeve,.004);
+  // ---- firing hand on the pistol grip
+  {const ax=[0,1,-.3];tube([[.012,-.1,Zu(-.045)],[.02,-.086,Zu(-.01)],[.0245,-.079,Zu(.03)],[.0225,-.077,Zu(.058)],[.014,-.077,Zu(.07)]],[[.027,.02],[.036,.017],[.041,.0125],[.04,.011],[.036,.007]],ax,KN,{sq:.86,tip:.14,m:30,n:26});
+   for(let i=0;i<3;i++){const y=-.058-i*.021,uf=.0747-i*.0083,k=1-i*.05;digit([[.0225,y,Zu(uf-.022)],[.008,y,Zu(uf+.012)],[-.0165,y+.002,Zu(uf-.002)],[-.0195,y+.003,Zu(uf-.026)]],[.0096*k,.009*k,.0084*k,.0076*k],[0,1,0])}
+   digit([[.0225,-.046,Zu(.045)],[.0205,-.041,Zu(.076)],[.018,-.037,Zu(.1)],[.011,-.036,Zu(.116)]],[.0094,.0088,.0082,.0074],[0,1,0]);
+   digit([[.013,-.064,Zu(-.022)],[-.007,-.05,Zu(-.012)],[-.0205,-.042,Zu(.02)],[-.02,-.036,Zu(.055)]],[.0125,.0115,.0105,.0092],[0,1,0],{g:.8});
+   tube([[.012,-.1,Zu(-.045)],[.016,-.125,Zu(-.07)],[.022,-.155,Zu(-.095)]],[[.0296,.0226],[.0302,.0238],[.0312,.0248]],ax,M.cuff,{sq:.9,m:12,n:26});
+   tube([[.02,-.147,Zu(-.088)],[.035,-.21,Zu(-.14)],[.12,-.55,Zu(-.5)]],[[.0345,.03],[.04,.036],[.047,.043]],ax,M.sleeve,{m:14,n:22})}
+  gun.traverse(m=>{if(!m.isMesh)return;if([M.steel,M.steelD,M.lam,M.bake2,M.grip].includes(m.material))boxUV(m,m.material===M.lam?5:8);if(!m.material.transparent&&!m.material.isMeshBasicMaterial)m.castShadow=m.receiveShadow=true});
   muzzle=new THREE.Object3D();muzzle.position.set(0,.008,Zu(.72));gun.add(muzzle);
   // muzzle flash
   const fc=mkC(128),x=fc.getContext('2d');x.translate(64,64);x.fillStyle='#000';x.fillRect(-64,-64,128,128);x.globalCompositeOperation='lighter';
