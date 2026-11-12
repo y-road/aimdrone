@@ -74,7 +74,10 @@ button.go.alt{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1.5
 button.go.sm{font-size:15px;padding:10px 18px 10px 22px;letter-spacing:.24em}
 .btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
 .lb{width:min(520px,92vw);margin:0 auto 18px}
-.nrow{display:flex;gap:8px;margin-bottom:8px}
+.nrow{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}.nhint{flex-basis:100%;font:700 15px "Barlow Condensed",sans-serif;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);text-align:center}.nrow.done .nhint{display:none}
+@keyframes nglow{0%,100%{box-shadow:0 0 0 0 rgba(255,180,84,.55),0 0 14px rgba(255,180,84,.25)}50%{box-shadow:0 0 0 5px rgba(255,180,84,0),0 0 26px rgba(255,180,84,.55)}}
+.nrow:not(.done) input{font-size:24px;padding:13px 14px;border:2px solid var(--amber);background:rgba(255,180,84,.09);animation:nglow 1.5s ease-in-out infinite}.nrow:not(.done) input:focus{background:rgba(255,180,84,.16)}
+.nrow:not(.done) #psave{background:var(--amber);animation:nglow 1.5s ease-in-out infinite}.nrow:not(.done) #psave:hover{background:#ffc982}
 .nrow input{flex:1;min-width:0;font:600 18px "Barlow Condensed",sans-serif;letter-spacing:.08em;padding:9px 12px;background:rgba(0,0,0,.45);border:1.5px solid rgba(233,230,223,.5);color:var(--ink);outline:none;-webkit-user-select:text;user-select:text;touch-action:auto}
 .nrow input:focus{border-color:var(--amber)}
 .nrow.done #psave{display:none}.nrow input:disabled{opacity:.75;border-color:rgba(233,230,223,.25);color:var(--amber)}
@@ -114,7 +117,7 @@ button.go.sm{font-size:15px;padding:10px 18px 10px 22px;letter-spacing:.24em}
     <h1>AimDrone</h1>
     <div class="tag">Modern drone warfare · Dusk</div>
     <p>Attack drones are inbound in waves. Hold the post with your rifle: every hit scores, every drone that gets through costs the position.</p>
-    <div class="btns"><button class="go" id="start">Deploy</button><button class="go alt" id="showRank">Ranking</button></div>
+    <div class="btns"><button class="go" id="start">Play</button><button class="go alt" id="showRank">Ranking</button></div>
     <div id="note">A fictional scenario. Sound on recommended.</div>
   </div>
   <div class="ov top" id="rank"><h2>RANKING</h2><div class="tag">Top 100 · all players</div>
@@ -130,9 +133,9 @@ button.go.sm{font-size:15px;padding:10px 18px 10px 22px;letter-spacing:.24em}
     <h2>POSITION LOST</h2><div class="tag" id="overtag"></div>
     <div class="stats"><div id="sScore">0</div><div id="sWave">0</div><div id="sKills">0</div><div id="sAcc">0%</div>
       <span>Score</span><span>Wave</span><span>Drones down</span><span>Accuracy</span></div>
-    <div class="lb"><div class="nrow" id="nrow"><input id="pname" maxlength="16" placeholder="Your name" autocomplete="off" spellcheck="false"><button class="go sm" id="psave">Save score</button></div>
+    <div class="lb"><div class="nrow" id="nrow"><div class="nhint">Enter your name &middot; join the world ranking</div><input id="pname" maxlength="16" placeholder="Your name" autocomplete="off" spellcheck="false"><button class="go sm" id="psave">Save score</button></div>
       <div class="lbmsg" id="overMsg"></div><div class="board" id="overBoard"></div><div class="myrank" id="overMe"></div></div>
-    <button class="go" id="again">Redeploy</button>
+    <button class="go" id="again">Replay</button>
     <button class="go alt sm" id="home" style="margin-top:12px">Home</button>
   </div>
 </div>
@@ -732,7 +735,7 @@ async function submitScore(){if($('nrow').classList.contains('done')||$('psave')
   if(d&&d.me){$('nrow').classList.add('done');$('pname').disabled=true;$('pname').value=d.me.name}
   if(d&&d.me)$('overMsg').textContent=d.me.score>f.score?'Saved · your best stays '+Number(d.me.score).toLocaleString('en-US'):'Score saved'}
 function overRank(){$('pname').value=PNAME;$('pname').disabled=false;$('nrow').classList.remove('done');$('nrow').style.display=LB_ON?'':'none';if(!LB_ON){loadBoard($('overBoard'),$('overMe'),$('overMsg'));return}
-  loadBoard($('overBoard'),$('overMe'),$('overMsg'),()=>rpc('aimdrone_board',{p_player:PID})).then(()=>{if(!$('nrow').classList.contains('done'))$('overMsg').textContent=PNAME?'Press Save score to post this run':'Enter a name to post your score'})}
+  loadBoard($('overBoard'),$('overMe'),$('overMsg'),()=>rpc('aimdrone_board',{p_player:PID})).then(()=>{if(!$('nrow').classList.contains('done')){$('overMsg').textContent=PNAME?'Press Save score to post this run':'Enter a name to post your score';if(G.state==='over'){try{$('pname').focus({preventScroll:true});$('pname').select()}catch(e){}}}})}
 $('home').addEventListener('click',()=>{resetGame();P.fire=false;setState('menu')});$('showRank').addEventListener('click',openRank);$('rankClose').addEventListener('click',()=>setState('menu'));$('psave').addEventListener('click',submitScore);$('pname').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')submitScore()});
 
 /* ---------- shooting ---------- */
