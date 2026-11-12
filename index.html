@@ -647,8 +647,8 @@ function buildGun(){
    // knit: ribs across the hand, offset stitches along each rib
    let S=128,h=new Float32Array(S*S);for(let y=0,i=0;y<S;y++)for(let x=0;x<S;x++,i++){const u=x/S,vv=y/S*12,row=Math.floor(vv),rib=Math.pow(Math.sin((vv-row)*PI),.7),st=Math.abs(Math.sin((u*20+(row%2)*.5)*PI));h[i]=rib*(.55+.45*st)}
    const kc=paint(S,(u,v,i,o)=>{const k=.5+.62*h[i]+(hsh(i%S,(i/S)|0)-.5)*.16;o[0]=.215*k;o[1]=.215*k;o[2]=.19*k}),kn=normalC(h,S,2.4);
-   M.knit=new THREE.MeshStandardMaterial({map:tex(kc,true,2,2.4),normalMap:tex(kn,false,2,2.4),roughness:.97});
-   const cm=tex(kc,true,3,1.2),cn=tex(kn,false,3,1.2);cm.rotation=cn.rotation=PI/2;M.cuff=new THREE.MeshStandardMaterial({map:cm,normalMap:cn,roughness:.97,color:0xb9b9b9});
+   M.knit=new THREE.MeshStandardMaterial({color:0x33352e,normalMap:tex(kn,false,7,8),normalScale:new THREE.Vector2(.55,.55),roughness:.9});M.pad=new THREE.MeshStandardMaterial({color:0x141514,roughness:.48});M.tab=new THREE.MeshStandardMaterial({color:0x6d6f66,roughness:.6});
+   const cm=tex(kc,true,3,1.2),cn=tex(kn,false,3,1.2);cm.rotation=cn.rotation=PI/2;M.cuff=new THREE.MeshStandardMaterial({color:0x232421,normalMap:tex(kn,false,9,3),normalScale:new THREE.Vector2(.35,.35),roughness:.82});
    // skin: pores, fine transverse wrinkles, deeper creases over the joints
    const g=(v,c)=>Math.exp(-Math.pow((v-c)/.024,2));h=new Float32Array(S*S);
    for(let y=0,i=0;y<S;y++)for(let x=0;x<S;x++,i++){const u=x/S,v=y/S,cr=g(v,.33)+g(v,.67);h[i]=.5+(hsh(x,y)-.5)*.22+.07*Math.sin(v*PI*90+Math.sin(u*PI*6)*2.2)-cr*.42*(.55+.45*Math.sin(v*PI*150+u*9))}
@@ -675,12 +675,17 @@ function buildGun(){
     tube([p[0],L3(p[0],p[1],.3),e],[r[0],lerp(r[0],r[1],.3),re].map(q=>[q*1.08+.0013,q*.94+.0013]),hint,KN,{m:10,v0:0,v1:.25});hem(e,[p[1][0]-p[0][0],p[1][1]-p[0][1],p[1][2]-p[0][2]],re*1.08+.0013,re*.94+.0013,hint,KN)};
   // ---- support hand: fingerless knit glove, palm on the left of the handguard, thumb up the side
   tube([[-.055,-.118,hz+.036],[-.048,-.088,hz+.02],[-.041,-.06,hz+.008],[-.032,-.037,hz+.001],[-.021,-.03,hz]],[[.0315,.0285],[.04,.0255],[.046,.0215],[.046,.015],[.041,.009]],[0,0,1],KN,{sq:.86,tip:.14,m:32,n:28});
-  for(let i=0;i<4;i++){const z=hz+.036-i*.0235,k=1-i*.055,s=add(new THREE.SphereGeometry(1,14,10),KN,-.0315,-.0335,z);s.scale.set(.0112*k,.0105*k,.0118*k);
-    digit([[-.03,-.034,z],[-.003,-.0415,z-.002],[.0245,-.038,z-.003],[.0325,-.015,z-.004]],[.0098*k,.0092*k,.0086*k,.0077*k],[0,0,1])}
-  {const T0=[-.043,-.078,hz+.028],T1=[-.04,-.052,hz+.037],T2=[-.0365,-.029,hz+.027],T3=[-.0348,-.007,hz+.013],T4=[-.0338,.014,hz+.004],th=[.91,0,.41],e=L3(T2,T3,.32);
+  for(let i=0;i<4;i++){const z=hz-.0345+i*.0235,k=1-i*.055,kb=add(new THREE.SphereGeometry(1,16,12),M.pad,-.0335,-.0325,z);kb.scale.set(.0108*k,.0098*k,.0104*k);
+    if(i)digit([[-.03,-.034,z],[-.003,-.0415,z-.002],[.0245,-.038,z-.003],[.0325,-.015,z-.004]],[.0098*k,.0092*k,.0086*k,.0077*k],[0,0,1]);
+    else digit([[-.0315,-.033,z],[-.031,-.0295,z-.027],[-.023,-.0355,z-.045],[-.005,-.04,z-.05]],[.0098,.0092,.0086,.0077],[0,1,0])}
+  tube([[-.0385,-.036,hz-.043],[-.039,-.0375,hz],[-.0385,-.036,hz+.043]],[[.0052,.0034],[.0058,.0036],[.0048,.0032]],[0,1,0],M.pad,{m:12,n:12,tip:.08});
+  {const pd=add(new THREE.SphereGeometry(1,20,14),M.pad,-.0655,-.07,hz+.012,0,0,-.27);pd.scale.set(.0026,.017,.024);const st=[.0068,.0205,-.0118];
+   tube([[-.0625-st[0]*.5,-.14-st[1]*.5,hz+.048-st[2]*.5],[-.0625,-.14,hz+.048],[-.0625+st[0]*.5,-.14+st[1]*.5,hz+.048+st[2]*.5]],[[.0368,.034],[.0368,.034],[.0368,.034]],[0,0,1],M.pad,{sq:.92,m:6,n:28});
+   add(RB(.004,.017,.02,.0015),M.tab,-.0975,-.131,hz+.05,0,0,-.3)}
+  {const T0=[-.046,-.072,hz-.012],T1=[-.0415,-.049,hz-.03],T2=[-.0375,-.027,hz-.044],T3=[-.035,-.008,hz-.061],T4=[-.0335,.004,hz-.083],th=[.56,.72,.36],e=L3(T2,T3,.3);
    tube([T1,T2,T3,T4],[[.0152,.014],[.0136,.0122],[.012,.0104],[.0108,.0088]],th,SK,{joints:[1,2],tip:.11,flat:.75,m:36});
-   tube([T0,T1,T2,e],[[.0185,.0165],[.017,.0158],[.0152,.0138],[.0143,.0128]],th,KN,{m:22,v0:0,v1:.5});hem(e,[T3[0]-T2[0],T3[1]-T2[1],T3[2]-T2[2]],.0143,.0128,th,KN);
-   nail([-.0375,.0079,hz+.0146],[.001,.021,-.009],[-.41,.36,.84],.0062,.008)}
+   tube([T0,T1,T2,e],[[.0195,.0175],[.0172,.016],[.0152,.0138],[.0143,.0128]],th,KN,{m:22,v0:0,v1:.5});hem(e,[T3[0]-T2[0],T3[1]-T2[1],T3[2]-T2[2]],.0143,.0128,th,M.pad);
+   nail([-.0406,.0043,hz-.0735],[.0015,.012,-.022],[-.82,.51,.256],.006,.0078)}
   tube([[-.07,-.164,hz+.062],[-.0625,-.14,hz+.048],[-.0545,-.116,hz+.035]],[[.0372,.0345],[.035,.0322],[.033,.03]],[0,0,1],M.cuff,{sq:.92,m:16,n:28});
   hem([-.0545,-.116,hz+.035],[.007,.021,-.012],.033,.03,[0,0,1],M.cuff);hem([-.0655,-.15,hz+.054],[.007,.021,-.012],.0362,.0334,[0,0,1],M.cuff);
   tube([[-.0665,-.153,hz+.056],[-.082,-.205,hz+.085],[-.2,-.62,hz+.33]],[[.041,.0385],[.046,.0435],[.052,.049]],[0,0,1],M.sleeve,{m:16,n:24});hem([-.067,-.155,hz+.057],[.015,.054,-.03],.041,.0385,[0,0,1],M.sleeve,.004);
