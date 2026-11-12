@@ -728,7 +728,7 @@ function renderBoard(el,meEl,d){el.textContent='';const row=(cls,cells)=>{const 
   meEl.textContent='';if(d.me){meEl.append('Your rank ');const b=document.createElement('b');b.textContent='#'+d.me.rank;meEl.append(b,' of '+Number(d.total).toLocaleString('en-US'))}else meEl.textContent=d.total?'Finish a round and save your score to get ranked':'';
   if(mine)mine.scrollIntoView({block:'center'});else el.scrollTop=0}
 async function loadBoard(boardEl,meEl,msgEl,call){if(!LB_ON){boardEl.textContent='';meEl.textContent='';msgEl.textContent='Ranking is not connected yet';return}
-  msgEl.textContent='Loading…';try{const d=await call();msgEl.textContent='';renderBoard(boardEl,meEl,d);return d}catch(e){msgEl.textContent='Could not reach the ranking server';console.warn(e)}}
+  msgEl.textContent='Loading…';try{const d=await call();msgEl.textContent='';renderBoard(boardEl,meEl,d);return d}catch(e){msgEl.textContent=/HTTP 400/.test(e.message)?'Score rejected by the server':'Could not reach the ranking server';console.warn(e)}}
 function openRank(){setState('rank');loadBoard($('rankBoard'),$('rankMe'),$('rankMsg'),()=>rpc('aimdrone_board',{p_player:PID}))}
 async function submitScore(){if($('nrow').classList.contains('done')||$('psave').disabled)return;const nm=$('pname').value.trim().slice(0,16);if(!nm){$('overMsg').textContent='Enter a name to post your score';$('pname').focus();return}PNAME=nm;try{localStorage.setItem('aimdrone_name',nm)}catch(e){}
   const f=G.final||{score:0,wave:0,kills:0,acc:0};$('psave').disabled=true;const d=await loadBoard($('overBoard'),$('overMe'),$('overMsg'),()=>rpc('aimdrone_submit',{p_player:PID,p_name:nm,p_score:f.score,p_wave:f.wave,p_kills:f.kills,p_acc:f.acc}));$('psave').disabled=false;
@@ -736,7 +736,7 @@ async function submitScore(){if($('nrow').classList.contains('done')||$('psave')
   if(d&&d.me)$('overMsg').textContent=d.me.score>f.score?'Saved · your best stays '+Number(d.me.score).toLocaleString('en-US'):'Score saved'}
 function overRank(){$('pname').value=PNAME;$('pname').disabled=false;$('nrow').classList.remove('done');$('nrow').style.display=LB_ON?'':'none';if(!LB_ON){loadBoard($('overBoard'),$('overMe'),$('overMsg'));return}
   loadBoard($('overBoard'),$('overMe'),$('overMsg'),()=>rpc('aimdrone_board',{p_player:PID})).then(()=>{if(!$('nrow').classList.contains('done')){$('overMsg').textContent=PNAME?'Press Save score to post this run':'Enter a name to post your score';if(G.state==='over'){try{$('pname').focus({preventScroll:true});$('pname').select()}catch(e){}}}})}
-$('home').addEventListener('click',()=>{resetGame();P.fire=false;setState('menu')});$('showRank').addEventListener('click',openRank);$('rankClose').addEventListener('click',()=>setState('menu'));$('psave').addEventListener('click',submitScore);$('pname').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')submitScore()});
+$('home').addEventListener('click',()=>{resetGame();P.fire=false;setState('menu')});$('showRank').addEventListener('click',openRank);$('rankClose').addEventListener('click',()=>setState('menu'));$('psave').addEventListener('click',submitScore);$('pname').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)submitScore()});
 
 /* ---------- shooting ---------- */
 const fwd=new V3(),right=new V3(),upv=new V3(),mpos=new V3();
@@ -941,7 +941,7 @@ function frame(now){requestAnimationFrame(frame);const raw=(now-last)/1000;last=
   // warm drone shaders off-screen
   progress(1);await tick();
   window.__booted=true;$('load').classList.remove('show');setState('menu');
-  window.__game={au:()=>!!(AU.ctx&&AU.gunB&&AU.boomB),skip:()=>{G.introT=99},G,P,drones,spawnDrone,set:(y,p)=>{yaw=y;pitch=p},begin,shoot,explosion,camera,V3,startReload};
+  if(location.protocol==='file:'||/^(localhost|127\.0\.0\.1)$/.test(location.hostname))window.__game={au:()=>!!(AU.ctx&&AU.gunB&&AU.boomB),skip:()=>{G.introT=99},G,P,drones,spawnDrone,set:(y,p)=>{yaw=y;pitch=p},begin,shoot,explosion,camera,V3,startReload};
   last=performance.now();requestAnimationFrame(frame);
 })().catch(e=>{console.error(e);$('loadmsg').textContent='Something went wrong while building the scene: '+e.message});
 </script>

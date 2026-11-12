@@ -15,6 +15,8 @@ create table if not exists public.aimdrone_scores (
 create index if not exists aimdrone_scores_rank
   on public.aimdrone_scores (score desc, updated_at asc);
 
+alter table public.aimdrone_scores add column if not exists submitted_at timestamptz not null default now();
+
 alter table public.aimdrone_scores enable row level security;
 revoke all on table public.aimdrone_scores from anon, authenticated;
 
@@ -53,9 +55,28 @@ set search_path = public
 as $$
 declare
   v_name text := left(btrim(regexp_replace(coalesce(p_name, ''), '[[:cntrl:]]', '', 'g')), 16);
+  v_wave  integer := coalesce(p_wave, 0);
+  v_kills integer := coalesce(p_kills, 0);
+  v_max_kills integer;
+  v_last timestamptz;
 begin
   if p_player is null then raise exception 'player required'; end if;
   if p_score is null or p_score < 0 or p_score > 50000000 then raise exception 'bad score'; end if;
+
+  -- Plausibility checks. Scores are computed in the browser, so this cannot make cheating impossible;
+  -- it only rejects numbers the game itself could never produce.
+  -- Drones per wave n: min(9, 2+n) Shaheds + (n<2 ? 0 : min(8, round((n-1)*1.4))) FPVs.
+  if v_wave < 0 or v_wave > 200 or v_kills < 0 then raise exception 'bad run'; end if;
+  select coalesce(sum(least(9, 2 + n) + case when n < 2 then 0 else least(8, round((n - 1) * 1.4)) end), 0)
+    into v_max_kills from generate_series(1, v_wave) n;
+  if v_kills > v_max_kills then raise exception 'bad run'; end if;
+  -- Per kill at most ~1000 points on average (long-range shots, full streak) + hit points,
+  -- plus the wave-clear bonus (max 250 per wave number) and some slack.
+  if p_score > v_kills * 1030 + 125 * v_wave * (v_wave + 1) + 500 then raise exception 'bad run'; end if;
+
+  -- One submit per player every 10 s (a round lasts far longer than that).
+  select submitted_at into v_last from aimdrone_scores where player_id = p_player;
+  if v_last is not null and v_last > now() - interval '10 seconds' then raise exception 'too fast'; end if;
   if v_name = '' then v_name := 'PLAYER'; end if;
 
   insert into aimdrone_scores (player_id, name, score, wave, kills, accuracy)
@@ -68,7 +89,8 @@ begin
     kills      = case when excluded.score > aimdrone_scores.score then excluded.kills    else aimdrone_scores.kills    end,
     accuracy   = case when excluded.score > aimdrone_scores.score then excluded.accuracy else aimdrone_scores.accuracy end,
     updated_at = case when excluded.score > aimdrone_scores.score then now()             else aimdrone_scores.updated_at end,
-    score      = greatest(aimdrone_scores.score, excluded.score);
+    score      = greatest(aimdrone_scores.score, excluded.score),
+    submitted_at = now();
 
   return aimdrone_board(p_player);
 end;
@@ -80,3 +102,6 @@ grant execute on function public.aimdrone_board(uuid) to anon, authenticated;
 grant execute on function public.aimdrone_submit(uuid, text, integer, integer, integer, integer) to anon, authenticated;
 
 -- To wipe the ranking later:  truncate table public.aimdrone_scores;
+
+-- Remove a cheated entry by name:   delete from public.aimdrone_scores where name = 'cheat1';
+-- Remove anything above a score:    delete from public.aimdrone_scores where score > 100000;
