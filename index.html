@@ -516,7 +516,7 @@ function buildDroneProtos(){
 const drones=[];
 function spawnDrone(type,opt={}){
   const w=G.wave,spread=clamp(.9+w*.18,0,2.0),a=opt.a??rr(-spread,spread);let d;
-  if(type==='S'){const Rr=rr(560,720),alt=rr(60,130),m=shahedProto.clone();d={type,m,hp:3,max:3,speed:Math.min(80,50+w*2.4),hitR:2.15,state:'cruise',alt,pts:150,
+  if(type==='S'){const Rr=rr(560,720),alt=rr(60,130),m=shahedProto.clone();d={type,m,hp:2,max:2,speed:Math.min(80,50+w*2.4),hitR:2.15,state:'cruise',alt,pts:150,
     target:(()=>{const ta=rr(-1.4,1.4),tr=rr(6,13);return new V3(Math.sin(ta)*tr,0,-Math.cos(ta)*tr)})(),dmg:30,ex:rr(-.8,.8),ez:rr(-.8,.8),sc:1.7};m.position.set(Math.sin(a)*Rr,alt,-Math.cos(a)*Rr)}
   else{const Rr=rr(300,390),alt=rr(14,42),m=fpvProto.clone();d={type,m,hp:1,max:1,speed:Math.min(47,29+w*1.7),hitR:.82,state:'run',alt,pts:100,target:null,dmg:18,sc:.75,ph:R()*6.28};m.position.set(Math.sin(a)*Rr,alt,-Math.cos(a)*Rr)}
   if(opt.pos)d.m.position.copy(opt.pos);
