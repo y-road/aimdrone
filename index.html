@@ -639,7 +639,7 @@ function buildGun(){
   {const g=new THREE.CylinderGeometry(.0072,.0078,.012,16);g.rotateZ(-Math.PI/2);add(g,ST,.0235,AX,Zu(.13));const g2=new THREE.CylinderGeometry(.0085,.0085,.016,16);g2.rotateZ(Math.PI/2);add(g2,ST,-.0245,AX-.004,Zu(.14))}
   add(new THREE.CircleGeometry(.0148,28),new THREE.MeshStandardMaterial({color:0xffb08a,transparent:true,opacity:.05,roughness:.04,metalness:0,depthWrite:false}),0,AX,Zu(.168));
   add(new THREE.CircleGeometry(.013,28),new THREE.MeshStandardMaterial({color:0xbfd8ee,transparent:true,opacity:.035,roughness:.04,depthWrite:false}),0,AX,Zu(.096));
-  dot=add(new THREE.CircleGeometry(.000425,12),new THREE.MeshBasicMaterial({color:new THREE.Color(14,1.2,.5),transparent:true,depthTest:false,fog:false}),0,AX,Zu(.167));dot.renderOrder=9;
+  dot=add(new THREE.CircleGeometry(.000425,12),new THREE.MeshBasicMaterial({color:new THREE.Color(8,.14,.02),transparent:true,depthTest:false,fog:false}),0,AX,Zu(.167));dot.renderOrder=9;
   // hands + sleeves
   const cap=(r,a,b,mat)=>{const A=new V3(...a),B=new V3(...b),m=new THREE.Mesh(new THREE.CapsuleGeometry(r,A.distanceTo(B),5,12),mat);m.position.copy(A).add(B).multiplyScalar(.5);m.quaternion.setFromUnitVectors(UP,B.clone().sub(A).normalize());gun.add(m);return m};
   const hz=Zu(.37);
@@ -934,7 +934,7 @@ function ambience(dt){colT-=dt;if(colT<=0){colT=.55;for(const[x,z]of columns)emi
 function emitCol(x,z,age){const g=rr(.03,.06);smoke.emit({x:x+rr(-4,4),y:tH(x,z)+2,z:z+rr(-4,4),vx:rr(3,5),vy:rr(4.5,6.5),vz:rr(-1,1),life:age,ttl:34,s0:14,s1:rr(70,110),r:g*1.3,g:g*1.1,b:g*1.2,a:.5,fin:.04,rv:rr(-.08,.08)})}
 
 /* ---------- main loop ---------- */
-let last=performance.now(),fAcc=0,fN=0;const gp0=new V3(.1,-.125,-.3),gp1=new V3(0,-.072*.8,-.2),gpos=new V3();
+let last=performance.now(),fAcc=0,fN=0,shLive=false;const gp0=new V3(.1,-.125,-.3),gp1=new V3(0,-.072*.8,-.2),gpos=new V3();
 function update(dt){
   if(G.state==='intro'){G.introT+=dt;const t=G.introT/5;pitch=lerp(-.62,.07,sstep(.12,.92,t));yaw=lerp(.6,0,sstep(0,.95,t));P.raise=1-sstep(.42,.8,t);
     if(!G.racked&&t>.84){G.racked=1;P.bolt=1;sClick(0,1100,.4);sClick(.14,2000,.35)}finalPass.uniforms.uFade.value=1-sstep(0,1.7,G.introT);if(t>=1){P.raise=0;setState('play');startWave(1)}}
@@ -979,6 +979,7 @@ function update(dt){
   for(const t of tracers){if(!t.on)continue;t.t+=dt*520;if(t.t>=t.len){t.on=false;t.m.visible=false;continue}const L=Math.min(9,t.len-t.t,t.t+2);t.m.position.copy(t.p).addScaledVector(t.dir,t.t);_v.copy(t.m.position).add(t.dir);t.m.lookAt(_v);t.m.scale.set(1+t.t*.02,1+t.t*.02,L)}
   for(const d of debris){if(!d.on)continue;d.t+=dt;d.v.y-=9.8*dt;d.m.position.addScaledVector(d.v,dt);d.m.rotation.x+=d.sp[0]*dt;d.m.rotation.y+=d.sp[1]*dt;const gh=tH(d.m.position.x,d.m.position.z);
     if(R()<.5){const g=.05;smoke.emit({x:d.m.position.x,y:d.m.position.y,z:d.m.position.z,ttl:rr(.5,1.1),s0:.25,s1:1.1,r:g,g:g,b:g,a:.45})}if(d.t>d.ttl||d.m.position.y<gh){d.on=false;d.m.visible=false}}
+  {let live=false;const mi=sun.shadow.camera.matrixWorldInverse;for(const d of drones){_v.copy(d.m.position).applyMatrix4(mi);if(Math.abs(_v.x)<38&&Math.abs(_v.y)<38&&_v.z>-280){live=true;break}}if(live||shLive)sun.shadow.needsUpdate=true;shLive=live}
   ambience(dt);smoke.update(dt);fire.update(dt);
   hit=Math.max(0,hit-dt*4);if(hit<=0)hitK=0;G.dmgFx=Math.max(0,G.dmgFx-dt*1.2);
   sky.position.copy(camera.position);skyMat.uniforms.uTime.value=time;if(grassMat.userData.t)grassMat.userData.t.value=time;
@@ -993,6 +994,20 @@ function frame(now){requestAnimationFrame(frame);const raw=(now-last)/1000;last=
   fAcc+=raw;fN++;if(fAcc>2){const ms=fAcc/fN*1000;fAcc=0;fN=0;if(window.__noAdapt){}else if(ms>26&&scale>.55){scale=Math.max(.55,scale-.12);resize()}else if(ms<14&&scale<1){scale=Math.min(1,scale+.08);resize()}}}
 
 /* ---------- boot ---------- */
+// bake static meshes that share a material into one draw call (same pixels, far fewer calls)
+function mergeKids(par,skip=[]){const groups=new Map();
+  for(const m of[...par.children]){if(!m.isMesh||m.isInstancedMesh||m.children.length||!m.visible||m.renderOrder||!m.frustumCulled||skip.includes(m))continue;const mt=m.material;
+    if(Array.isArray(mt)||mt.transparent||!(mt.isMeshStandardMaterial||mt.isMeshBasicMaterial))continue;m.updateMatrix();if(m.matrix.determinant()<0)continue;
+    const k=mt.id+'|'+(+m.castShadow)+(+m.receiveShadow);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(m)}
+  for(const ms of groups.values()){if(ms.length<2)continue;
+    const gs=ms.map(m=>{const g=m.geometry.index?m.geometry.toNonIndexed():m.geometry.clone();for(const n of Object.keys(g.attributes))if(n!=='position'&&n!=='normal'&&n!=='uv')g.deleteAttribute(n);
+      if(!g.attributes.normal)g.computeVertexNormals();if(!g.attributes.uv)g.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(g.attributes.position.count*2),2));g.applyMatrix4(m.matrix);return g});
+    const mg=mergeGeometries(gs,false);gs.forEach(g=>g.dispose());if(!mg)continue;const o=new THREE.Mesh(mg,ms[0].material);o.castShadow=ms[0].castShadow;o.receiveShadow=ms[0].receiveShadow;for(const m of ms)par.remove(m);par.add(o)}}
+// draw one hidden frame with every effect visible so shaders compile during loading, not mid-fight
+function prewarm(){if(window.__noRender)return;const tmp=[shahedProto.clone(),fpvProto.clone()],hid=[];tmp.forEach((m,i)=>{m.position.set(i*4-2,0,-18);m.traverse(o=>{if(o.isMesh&&o.material!==M.prop)o.castShadow=true});scene.add(m)});
+  for(const o of[...tracers.map(t=>t.m),...mFlash,...casings.map(c=>c.m)])if(!o.visible){o.visible=true;hid.push(o)}
+  try{smoke.update(0);fire.update(0);composer.render()}catch(e){console.warn(e)}
+  tmp.forEach(m=>scene.remove(m));hid.forEach(o=>o.visible=false);sun.shadow.needsUpdate=true}
 (async()=>{
   progress(.05);await tick();buildMaterials();progress(.3);await tick();
   buildTerrain();progress(.5);await tick();buildGrass();progress(.62);await tick();
@@ -1000,8 +1015,8 @@ function frame(now){requestAnimationFrame(frame);const raw=(now-last)/1000;last=
   smoke=new Particles(1400,false);fire=new Particles(900,true);buildDroneProtos();buildGun();buildPost();resize();
   for(let k=0;k<60;k++)for(const[x,z]of columns)emitCol(x,z,k*.55);
   progress(.9);await tick();
-  renderer.compile(scene,camera);renderer.compile(gunScene,gunCam);
-  // warm drone shaders off-screen
+  mergeKids(scene);mergeKids(gun,[dot,...fsight,...mFlash]);mergeKids(mag);mergeKids(bolt);
+  sun.shadow.autoUpdate=false;sun.shadow.needsUpdate=true;prewarm();
   progress(1);await tick();
   window.__booted=true;$('load').classList.remove('show');setState('menu');
   if(location.protocol==='file:'||/^(localhost|127\.0\.0\.1)$/.test(location.hostname))window.__game={au:()=>!!(AU.ctx&&AU.gunB&&AU.boomB),skip:()=>{G.introT=99},G,P,drones,spawnDrone,set:(y,p)=>{yaw=y;pitch=p},begin,shoot,explosion,camera,V3,startReload};
