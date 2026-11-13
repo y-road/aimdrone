@@ -639,7 +639,7 @@ function buildGun(){
   {const g=new THREE.CylinderGeometry(.0072,.0078,.012,16);g.rotateZ(-Math.PI/2);add(g,ST,.0235,AX,Zu(.13));const g2=new THREE.CylinderGeometry(.0085,.0085,.016,16);g2.rotateZ(Math.PI/2);add(g2,ST,-.0245,AX-.004,Zu(.14))}
   add(new THREE.CircleGeometry(.0148,28),new THREE.MeshStandardMaterial({color:0xffb08a,transparent:true,opacity:.05,roughness:.04,metalness:0,depthWrite:false}),0,AX,Zu(.168));
   add(new THREE.CircleGeometry(.013,28),new THREE.MeshStandardMaterial({color:0xbfd8ee,transparent:true,opacity:.035,roughness:.04,depthWrite:false}),0,AX,Zu(.096));
-  dot=add(new THREE.CircleGeometry(.00085,12),new THREE.MeshBasicMaterial({color:new THREE.Color(14,1.2,.5),transparent:true,depthTest:false,fog:false}),0,AX,Zu(.167));dot.renderOrder=9;
+  dot=add(new THREE.CircleGeometry(.000425,12),new THREE.MeshBasicMaterial({color:new THREE.Color(.03,.75,.16),transparent:true,depthTest:false,fog:false}),0,AX,Zu(.167));dot.renderOrder=9;
   // hands + sleeves
   const cap=(r,a,b,mat)=>{const A=new V3(...a),B=new V3(...b),m=new THREE.Mesh(new THREE.CapsuleGeometry(r,A.distanceTo(B),5,12),mat);m.position.copy(A).add(B).multiplyScalar(.5);m.quaternion.setFromUnitVectors(UP,B.clone().sub(A).normalize());gun.add(m);return m};
   const hz=Zu(.37);
