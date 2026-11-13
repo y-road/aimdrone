@@ -558,7 +558,7 @@ function killDrone(d,i,dist){if(d.type==='S'){explosion(d.m.position.clone(),.7,
   const pts=Math.round((d.pts+Math.max(0,dist-40)*1.2)*mult/5)*5;G.score+=pts;pop('+'+pts+(d.type==='S'?' SHAHED DOWN':' FPV DOWN')+(G.combo>1?'  x'+mult.toFixed(2):''),true);hudDirty=true;hit=1;hitK=1;sKill()}
 
 /* ---------- weapon ---------- */
-const gunHolder=new THREE.Group(),gun=new THREE.Group(),mag=new THREE.Group(),bolt=new THREE.Group();let muzzle,mFlash=[],gFlashL,dot,casings=[],tracers=[];
+const gunHolder=new THREE.Group(),gun=new THREE.Group(),mag=new THREE.Group(),bolt=new THREE.Group();let muzzle,mFlash=[],gFlashL,dot,fsight=[],casings=[],tracers=[];
 function boxUV(m,k){m.updateMatrix();const g=m.geometry,p=g.attributes.position,n=g.attributes.normal,uv=new Float32Array(p.count*2),v=new V3(),q=new V3(),nm=new THREE.Matrix3().getNormalMatrix(m.matrix);
   for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i).applyMatrix4(m.matrix);q.fromBufferAttribute(n,i).applyMatrix3(nm);const ax=Math.abs(q.x),ay=Math.abs(q.y),az=Math.abs(q.z);
     if(ax>=ay&&ax>=az){uv[i*2]=v.z*k;uv[i*2+1]=v.y*k}else if(ay>=az){uv[i*2]=v.z*k;uv[i*2+1]=v.x*k}else{uv[i*2]=v.x*k;uv[i*2+1]=v.y*k}}
@@ -612,8 +612,8 @@ function buildGun(){
   add(RB(.04,.04,.176,.013),WD,0,-.008,Zu(.37));add(RB(.0455,.03,.092,.014),WD,0,-.011,Zu(.36));add(RB(.043,.046,.012,.003),ST,0,-.006,Zu(.463));
   // barrel, front sight, muzzle brake
   lathe([[.0115,.262],[.0115,.286],[.0088,.291],[.0088,.668]],.008,M.steelD);cyl(.0028,.0028,.468,.674,-.0125,M.bright,10);cyl(.004,.004,.668,.678,-.0125,ST,10);
-  add(prof([[0,-.006],[.034,-.006],[.03,.02],[.024,.05],[.01,.05],[.004,.02]],.016,.002),ST,0,.002,Zu(.625)+.115-.115);
-  for(const sx of[-1,1])add(RB(.0024,.016,.02,.001),ST,sx*.0098,.059,Zu(.642),0,0,-sx*.14);add(new THREE.CylinderGeometry(.0012,.0012,.02,8),ST,0,.061,Zu(.642));
+  fsight.push(add(prof([[0,-.006],[.034,-.006],[.03,.02],[.024,.05],[.01,.05],[.004,.02]],.016,.002),ST,0,.002,Zu(.625)+.115-.115));
+  for(const sx of[-1,1])fsight.push(add(RB(.0024,.016,.02,.001),ST,sx*.0098,.059,Zu(.642),0,0,-sx*.14));fsight.push(add(new THREE.CylinderGeometry(.0012,.0012,.02,8),ST,0,.061,Zu(.642)));
   lathe([[.0088,.668],[.0118,.669],[.0118,.682],[.0105,.683]],.008,M.steelD);
   {const g=new THREE.CylinderGeometry(.0112,.0112,.03,22,1,true);g.rotateX(Math.PI/2);const q=g.attributes.position;for(let i=0;i<q.count;i++)if(q.getZ(i)<0)q.setZ(i,q.getZ(i)-.007+(q.getX(i)-q.getY(i))/.0112*.006);g.computeVertexNormals();add(g,M.steelD,0,.008,Zu(.697))}
   {const g=new THREE.CircleGeometry(.0086,18);g.rotateY(Math.PI);add(g,M.black,0,.008,Zu(.688))}
@@ -639,7 +639,7 @@ function buildGun(){
   {const g=new THREE.CylinderGeometry(.0072,.0078,.012,16);g.rotateZ(-Math.PI/2);add(g,ST,.0235,AX,Zu(.13));const g2=new THREE.CylinderGeometry(.0085,.0085,.016,16);g2.rotateZ(Math.PI/2);add(g2,ST,-.0245,AX-.004,Zu(.14))}
   add(new THREE.CircleGeometry(.0148,28),new THREE.MeshStandardMaterial({color:0xffb08a,transparent:true,opacity:.05,roughness:.04,metalness:0,depthWrite:false}),0,AX,Zu(.168));
   add(new THREE.CircleGeometry(.013,28),new THREE.MeshStandardMaterial({color:0xbfd8ee,transparent:true,opacity:.035,roughness:.04,depthWrite:false}),0,AX,Zu(.096));
-  dot=add(new THREE.CircleGeometry(.000425,12),new THREE.MeshBasicMaterial({color:new THREE.Color(.03,.75,.16),transparent:true,depthTest:false,fog:false}),0,AX,Zu(.167));dot.renderOrder=9;
+  dot=add(new THREE.CircleGeometry(.000425,12),new THREE.MeshBasicMaterial({color:new THREE.Color(14,1.2,.5),transparent:true,depthTest:false,fog:false}),0,AX,Zu(.167));dot.renderOrder=9;
   // hands + sleeves
   const cap=(r,a,b,mat)=>{const A=new V3(...a),B=new V3(...b),m=new THREE.Mesh(new THREE.CapsuleGeometry(r,A.distanceTo(B),5,12),mat);m.position.copy(A).add(B).multiplyScalar(.5);m.quaternion.setFromUnitVectors(UP,B.clone().sub(A).normalize());gun.add(m);return m};
   const hz=Zu(.37);
@@ -970,7 +970,7 @@ function update(dt){
   gun.position.y-=P.raise*.32;gun.rotation.x+=P.raise*.75;gun.rotation.z+=P.raise*.3;P.bolt=Math.max(0,P.bolt-dt*15);{const rt=2.3-P.reload,rk=P.reload>0?sstep(1.88,1.98,rt)*(1-sstep(2.04,2.14,rt)):0;bolt.position.z=Math.max(P.bolt,rk)*.058}
   camera.getWorldDirection(_v);gSun.target.position.copy(camera.position).addScaledVector(_v,.35);gSun.position.copy(gSun.target.position).addScaledVector(SUN,1.6);
   if(P.reload>0){const t=(2.3-P.reload)/2.3,m=t<.25?t/.25:t<.55?1:t<.75?1-(t-.55)/.2:0;mag.position.set(0,-m*.22,m*.04);mag.rotation.x=-m*.3;mag.visible=!(t>.3&&t<.52)}else{mag.position.set(0,0,0);mag.rotation.x=0;mag.visible=true}
-  dot.material.opacity=sstep(.6,1,P.ads);gun.visible=G.state!=='menu'||true;
+  dot.material.opacity=sstep(.6,1,P.ads);{const v=P.ads<.5;for(const m of fsight)m.visible=v}gun.visible=G.state!=='menu'||true;
   gunHolder.position.copy(camera.position);gunHolder.quaternion.copy(camera.quaternion);gunCam.position.copy(camera.position);gunCam.quaternion.copy(camera.quaternion);
   // flash + lights
   flashT-=dt;const fl=flashT>0;if(!fl)mFlash.forEach(f=>f.visible=false);gFlashL.intensity=fl?2.5:0;flashW.intensity=fl?28:0;if(fl)muzzleWorld(flashW.position);
